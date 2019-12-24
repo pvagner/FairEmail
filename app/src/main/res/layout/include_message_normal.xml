@@ -29,17 +29,25 @@
         android:layout_marginStart="6dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:visibility="visible"
+        android:importantForAccessibility="no"
         app:layout_constraintBottom_toBottomOf="@+id/paddingBottom"
         app:layout_constraintStart_toEndOf="@id/vwColor"
         app:layout_constraintTop_toTopOf="@id/paddingTop"
         app:srcCompat="@drawable/expander" />
 
     <View
+        android:id="@+id/vwExpander"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintStart_toEndOf="@+id/ibExpander"
+        app:layout_constraintTop_toBottomOf="@id/paddingTop" />
+
+    <View
         android:id="@+id/paddingStart"
         android:layout_width="6dp"
         android:layout_height="0dp"
         app:layout_constraintBottom_toBottomOf="@+id/paddingBottom"
-        app:layout_constraintStart_toEndOf="@+id/ibExpander"
+        app:layout_constraintStart_toEndOf="@+id/vwExpander"
         app:layout_constraintTop_toTopOf="parent" />
 
     <ImageButton
@@ -47,7 +55,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:contentDescription="@string/title_legend_avatar"
+        android:importantForAccessibility="no"
         android:paddingStart="6dp"
         android:paddingEnd="6dp"
         android:scaleType="centerCrop"
@@ -184,10 +192,19 @@
         android:background="?android:attr/selectableItemBackgroundBorderless"
         android:padding="6dp"
         android:visibility="visible"
+        android:importantForAccessibility="no"
         app:layout_constraintBottom_toBottomOf="@+id/tvFolder"
-        app:layout_constraintEnd_toStartOf="@id/paddingEnd"
+        app:layout_constraintEnd_toStartOf="@id/vwFlagged"
         app:layout_constraintTop_toBottomOf="@id/paddingTop"
         app:srcCompat="@drawable/baseline_star_24" />
+
+    <View
+        android:id="@+id/vwFlagged"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:contentDescription="@string/title_accessibility_flagged"
+        app:layout_constraintEnd_toStartOf="@id/paddingEnd"
+        app:layout_constraintTop_toBottomOf="@id/paddingTop" />
 
     <ImageView
         android:id="@+id/ivType"

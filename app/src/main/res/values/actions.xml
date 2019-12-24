@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="action_expand_collapse" type="id" />
+    <item name="action_flag_unflag" type="id" />
+    <item name="action_view_contact" type="id" />
+</resources>

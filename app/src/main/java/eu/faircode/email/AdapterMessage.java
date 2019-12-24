@@ -66,6 +66,8 @@ import android.text.style.QuoteSpan;
 import android.text.style.URLSpan;
 import android.util.Pair;
 import android.util.TypedValue;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -74,6 +76,7 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.TouchDelegate;
 import android.view.View;
+import android.view.View.AccessibilityDelegate;
 import android.view.ViewAnimationUtils;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
@@ -261,7 +264,9 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
 
         private View vwColor;
         private ImageButton ibExpander;
+        private View vwExpander;
         private ImageView ibFlagged;
+        private View vwFlagged;
         private ImageButton ibAvatar;
         private View vwSeen;
         private ImageButton ibAuth;
@@ -385,7 +390,9 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
 
             vwColor = itemView.findViewById(R.id.vwColor);
             ibExpander = itemView.findViewById(R.id.ibExpander);
+            vwExpander = itemView.findViewById(R.id.vwExpander);
             ibFlagged = itemView.findViewById(R.id.ibFlagged);
+            vwFlagged = itemView.findViewById(R.id.vwFlagged);
             ibAvatar = itemView.findViewById(R.id.ibAvatar);
             vwSeen = itemView.findViewById(R.id.vwSeen);
             ibAuth = itemView.findViewById(R.id.ibAuth);
@@ -658,7 +665,9 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
         private void clear() {
             vwColor.setVisibility(View.GONE);
             ibExpander.setVisibility(View.GONE);
+            vwExpander.setVisibility(View.GONE);
             ibFlagged.setVisibility(View.GONE);
+            vwFlagged.setVisibility(View.GONE);
             ibAvatar.setVisibility(View.GONE);
             ibAuth.setVisibility(View.GONE);
             ivPriorityHigh.setVisibility(View.GONE);
@@ -783,13 +792,14 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
             if (ibExpander.getTag() == null || (boolean) ibExpander.getTag() != expanded) {
                 ibExpander.setTag(expanded);
                 ibExpander.setImageLevel(expanded ? 0 /* less */ : 1 /* more */);
-                ibExpander.setContentDescription(context.getString(
+                vwExpander.setContentDescription(context.getString(
                         expanded ? R.string.title_accessibility_expanded : R.string.title_accessibility_collapsed));
             }
             if (viewType == ViewType.THREAD)
                 ibExpander.setVisibility(EntityFolder.DRAFTS.equals(message.folderType) ? View.INVISIBLE : View.VISIBLE);
             else
                 ibExpander.setVisibility(View.GONE);
+            vwExpander.setVisibility(ibExpander.getVisibility());
 
             // Photo
             ibAvatar.setVisibility(avatars ? View.INVISIBLE : View.GONE);
@@ -900,6 +910,47 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
                 tvError.setVisibility(error == null ? View.GONE : View.VISIBLE);
                 ibHelp.setVisibility(error == null ? View.GONE : View.VISIBLE);
             }
+
+            view.setAccessibilityDelegate(new AccessibilityDelegate() {
+
+                @Override
+                public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                    super.onInitializeAccessibilityNodeInfo(host, info);
+                    // Need to recalculate these each time accessibility services query AccessibilityNodeInfo
+                    final TupleMessageEx message = getMessage();
+                    if (message == null)
+                            return;
+
+                    int flagged = (message.count - message.unflagged);
+                    boolean expanded = (viewType == ViewType.THREAD && properties.getValue("expanded", message.id));
+                    if (ibExpander.getVisibility() == View.VISIBLE)
+                        info.addAction(new AccessibilityAction(R.id.action_expand_collapse, context.getString(expanded ? R.string.action_accessibility_collapse : R.string.action_accessibility_expand)));
+                    if (ibFlagged.getVisibility() == View.VISIBLE && ibFlagged.isEnabled())
+                        info.addAction(new AccessibilityAction(R.id.action_flag_unflag, context.getString(flagged > 0 ? R.string.action_accessibility_unflag : R.string.action_accessibility_flag)));
+                    if (ibAvatar.getVisibility() == View.VISIBLE && ibAvatar.isEnabled())
+                        info.addAction(new AccessibilityAction(R.id.action_view_contact, context.getString(R.string.action_accessibility_view_contact)));
+                }
+
+                @Override
+                public boolean performAccessibilityAction(View host, int action, Bundle args) {
+                    final TupleMessageEx message = getMessage();
+                    if (message == null)
+                            return false;
+
+                    switch (action) {
+                        case R.id.action_expand_collapse:
+                            onToggleMessage(message);
+                            return true;
+                        case R.id.action_flag_unflag:
+                            onToggleFlag(message);
+                            return true;
+                        case R.id.action_view_contact:
+                            onViewContact(message);
+                            return true;
+                    }
+                    return super.performAccessibilityAction(host, action, args);
+                }
+            });
 
             // Contact info
             ContactInfo info = ContactInfo.get(context, message.account, addresses, true);
@@ -1032,8 +1083,6 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
             int color = (message.color == null || !pro ? colorAccent : message.color);
 
             ibFlagged.setImageResource(flagged > 0 ? R.drawable.baseline_star_24 : R.drawable.baseline_star_border_24);
-            ibFlagged.setContentDescription(context.getString(
-                    flagged > 0 ? R.string.title_accessibility_flagged : R.string.title_accessibility_unflagged));
             ibFlagged.setImageTintList(ColorStateList.valueOf(flagged > 0 ? color : textColorSecondary));
             ibFlagged.setEnabled(message.uid != null || message.accountProtocol != EntityAccount.TYPE_IMAP);
 
@@ -1045,6 +1094,10 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
                 ibFlagged.setVisibility(message.folderReadOnly ? View.INVISIBLE : View.VISIBLE);
             else
                 ibFlagged.setVisibility(View.GONE);
+            if (flagged > 0)
+                vwFlagged.setVisibility(View.VISIBLE);
+            else
+                vwFlagged.setVisibility(View.GONE);
         }
 
         private void bindContactInfo(ContactInfo info, Address[] addresses, boolean name_email) {
@@ -2561,7 +2614,7 @@ public class AdapterMessage extends RecyclerView.Adapter<AdapterMessage.ViewHold
 
                 ibExpander.setTag(expanded);
                 ibExpander.setImageLevel(expanded ? 0 /* less*/ : 1 /* more */);
-                ibExpander.setContentDescription(context.getString(
+                vwExpander.setContentDescription(context.getString(
                         expanded ? R.string.title_accessibility_expanded : R.string.title_accessibility_collapsed));
 
                 if (expanded)
